@@ -1,0 +1,11 @@
+columns:
+  amount: float
+  oldbalanceOrg: float
+  newbalanceOrig: float
+  oldbalanceDest: float
+  newbalanceDest: float
+  type: object
+  isFraud: int
+
+target_column:
+  name: isFraud
