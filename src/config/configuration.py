@@ -8,6 +8,7 @@ from src.entity.config_entity import (
 )
 from src.utils.common import read_yaml, create_directories
 from pathlib import Path
+import os
 
 class ConfigurationManager:
     def __init__(
@@ -48,13 +49,22 @@ class ConfigurationManager:
         config = self.config['data_transformation']
         create_directories([config['root_dir']])
 
+        train_arr_path = os.path.join(
+            config['root_dir'], "train.npy"
+        )
+
+        test_arr_path = os.path.join(
+            config['root_dir'], "test.npy"
+        )
+
         return DataTransformationConfig(
             root_dir=Path(config['root_dir']),
             train_data_path=Path(config['train_data_path']),
             test_data_path=Path(config['test_data_path']),
             preprocessor_path=Path(config['preprocessor_path']),
+            train_arr_path=Path(train_arr_path),
+            test_arr_path=Path(test_arr_path),
         )
-
     def get_model_trainer_config(self) -> ModelTrainerConfig:
         config = self.config['model_trainer']
         params = self.params
@@ -63,8 +73,8 @@ class ConfigurationManager:
 
         return ModelTrainerConfig(
             root_dir=Path(config['root_dir']),
-            train_data_path=Path(self.config['data_transformation']['train_data_path']),
-            test_data_path=Path(self.config['data_transformation']['test_data_path']),
+            train_arr_path=Path(self.config['data_transformation']['train_arr_path']),
+            test_arr_path=Path(self.config['data_transformation']['test_arr_path']),
             model_path=Path(config['model_path']),
             target_column=schema['name'],
             params=params,
@@ -77,7 +87,7 @@ class ConfigurationManager:
 
         return ModelEvaluationConfig(
             root_dir=Path(config['root_dir']),
-            test_data_path=Path(self.config['data_transformation']['test_data_path']),
+            test_arr_path=Path(self.config['data_transformation']['test_arr_path']),
             model_path=Path(self.config['model_trainer']['model_path']),
             metrics_file=Path(config['metrics_file']),
             target_column=schema['name'],

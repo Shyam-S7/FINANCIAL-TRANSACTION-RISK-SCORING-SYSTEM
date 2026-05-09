@@ -1,0 +1,483 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+
+import warnings
+
+warnings.filterwarnings("ignore")
+
+---CELL---
+
+df = pd.read_csv("D:\PROJECTS\ML\Online_fraud_detection\data\onlinefraud.csv")
+df.head()
+
+---CELL---
+
+df.info()
+
+---CELL---
+
+df.size
+
+---CELL---
+
+df.columns
+
+---CELL---
+
+df.duplicated
+
+---CELL---
+
+df.isnull().sum()
+
+---CELL---
+
+df.describe
+
+---CELL---
+
+df = df.drop(["nameOrig", "nameDest"], axis=1)
+
+---CELL---
+
+df["isFlaggedFraud"].value_counts()
+
+---CELL---
+
+df["isFraud"].value_counts()
+
+---CELL---
+
+df = df.drop(["isFlaggedFraud"], axis=1)
+
+---CELL---
+
+df = df.sample(100000, random_state=42)
+
+---CELL---
+
+plt.figure(figsize=(4, 2))
+sns.countplot(x="isFraud", data=df)
+plt.title("Fraud vs Non-Fraud Distribution")
+plt.show()
+
+print(df["isFraud"].value_counts(normalize=True) * 100)
+
+---CELL---
+
+plt.figure(figsize=(4, 4))
+sns.countplot(x="type", hue="isFraud", data=df)
+plt.title("Transaction Type vs Fraud")
+plt.xticks(rotation=45)
+plt.show()
+
+# Percentage fraud per type
+fraud_by_type = df.groupby("type")["isFraud"].mean() * 100
+print(fraud_by_type.sort_values(ascending=False))
+
+---CELL---
+
+plt.figure(figsize=(4, 4))
+sns.boxplot(x="isFraud", y="amount", data=df)
+plt.yscale("log")  # important due to skew
+plt.title("Amount Distribution (Log Scale)")
+plt.show()
+
+---CELL---
+
+plt.figure(figsize=(4, 4))
+sns.scatterplot(
+    x="oldbalanceOrg",
+    y="newbalanceOrig",
+    hue="isFraud",
+    data=df.sample(50000),
+    alpha=0.5,
+)
+plt.title("Origin Balance Change")
+plt.show()
+
+---CELL---
+
+plt.figure(figsize=(4, 4))
+sns.scatterplot(
+    x="oldbalanceDest",
+    y="newbalanceDest",
+    hue="isFraud",
+    data=df.sample(50000),
+    alpha=0.5,
+)
+plt.title("Destination Balance Change")
+plt.show()
+
+---CELL---
+
+fraud_by_step = df.groupby("step")["isFraud"].sum()
+
+plt.figure(figsize=(10, 4))
+fraud_by_step.plot()
+plt.title("Fraud Count Over Time (Step)")
+plt.xlabel("Step")
+plt.ylabel("Fraud Count")
+plt.show()
+
+---CELL---
+
+df["isZeroOrig"] = (df["oldbalanceOrg"] == 0).astype(int)
+df["isZeroDest"] = (df["oldbalanceDest"] == 0).astype(int)
+
+print(
+    "Zero Origin vs Fraud:\n",
+    pd.crosstab(df["isZeroOrig"], df["isFraud"], normalize="index"),
+)
+print(
+    "\nZero Destination vs Fraud:\n",
+    pd.crosstab(df["isZeroDest"], df["isFraud"], normalize="index"),
+)
+
+---CELL---
+
+df["balanceDiffOrig"] = df["oldbalanceOrg"] - df["newbalanceOrig"]
+df["balanceDiffDest"] = df["newbalanceDest"] - df["oldbalanceDest"]
+
+---CELL---
+
+df["errorOrig"] = df["oldbalanceOrg"] - df["newbalanceOrig"] - df["amount"]
+df["errorDest"] = df["newbalanceDest"] - df["oldbalanceDest"] - df["amount"]
+
+plt.figure(figsize=(4, 4))
+sns.boxplot(x="isFraud", y="errorOrig", data=df)
+plt.title("Error in Origin Balance")
+plt.show()
+
+plt.figure(figsize=(4, 4))
+sns.boxplot(x="isFraud", y="errorDest", data=df)
+plt.title("Error in Destination Balance")
+plt.show()
+
+---CELL---
+
+plt.figure(figsize=(8, 4))
+sns.heatmap(df.corr(numeric_only=True), cmap="coolwarm")
+plt.title("Correlation Heatmap")
+plt.show()
+
+---CELL---
+
+def create_derived_features(dataframe):
+    df_copy = dataframe.copy()
+    # Calculate balance errors
+    df_copy["errorBalanceOrg"] = (
+        df_copy["newbalanceOrig"] + df_copy["amount"] - df_copy["oldbalanceOrg"]
+    )
+    df_copy["errorBalanceDest"] = (
+        df_copy["oldbalanceDest"] + df_copy["amount"] - df_copy["newbalanceDest"]
+    )
+    return df_copy
+
+
+df_engineered = create_derived_features(df)
+print("Engineered Features Added:")
+display(df_engineered[["errorBalanceOrg", "errorBalanceDest"]].head())
+
+---CELL---
+
+df_engineered.head()
+
+---CELL---
+
+from sklearn.model_selection import train_test_split
+
+target_column = "isFraud"
+X = df_engineered.drop(columns=[target_column])
+y = df_engineered[target_column]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print(f"X_train shape: {X_train.shape}")
+print(f"X_test shape: {X_test.shape}")
+
+---CELL---
+
+numerical_columns = X_train.select_dtypes(exclude="object").columns.tolist()
+categorical_columns = X_train.select_dtypes(include="object").columns.tolist()
+
+num_pipeline = Pipeline(
+    steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+)
+
+cat_pipeline = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ("scaler", StandardScaler(with_mean=False)),
+    ]
+)
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", num_pipeline, numerical_columns),
+        ("cat", cat_pipeline, categorical_columns),
+    ]
+)
+
+X_train_transformed = preprocessor.fit_transform(X_train)
+X_test_transformed = preprocessor.transform(X_test)
+
+print(f"Transformed X_train shape: {X_train_transformed.shape}")
+
+---CELL---
+
+from imblearn.over_sampling import SMOTE
+
+smote = SMOTE(random_state=42)
+
+X_train_res, y_train_res = smote.fit_resample(X_train_transformed, y_train)
+
+print("Before SMOTE:\n", y_train.value_counts())
+print("\nAfter SMOTE:\n", y_train_res.value_counts())
+
+---CELL---
+
+models = {
+    "LogisticRegression": LogisticRegression(class_weight="balanced", max_iter=1000),
+    "RandomForestClassifier": RandomForestClassifier(class_weight="balanced"),
+    "XGBClassifier": XGBClassifier(
+        scale_pos_weight=(len(y_train) - sum(y_train)) / sum(y_train),
+        eval_metric="logloss",
+    ),
+}
+
+from scipy.stats import randint, uniform
+
+params = {
+    "LogisticRegression": {"C": uniform(0.01, 10), "solver": ["liblinear"]},
+    "RandomForestClassifier": {
+        "n_estimators": randint(50, 200),
+        "max_depth": randint(3, 15),
+    },
+    "XGBClassifier": {
+        "n_estimators": randint(50, 200),
+        "learning_rate": uniform(0.01, 0.2),
+        "max_depth": randint(3, 10),
+    },
+}
+
+---CELL---
+
+from sklearn.model_selection import RandomizedSearchCV
+
+best_models = {}
+
+for model_name, model in models.items():
+    print(f"\n===== Tuning {model_name} =====")
+
+    rs = RandomizedSearchCV(
+        model,
+        param_distributions=params[model_name],
+        n_iter=5,
+        cv=3,
+        scoring="recall",  # fraud focus
+        n_jobs=-1,
+        random_state=42,
+    )
+
+    rs.fit(X_train_transformed, y_train)
+
+    best_models[model_name] = rs.best_estimator_
+
+    print(f"Best Params: {rs.best_params_}")
+
+---CELL---
+
+from sklearn.metrics import (
+    classification_report,
+    roc_auc_score,
+    confusion_matrix,
+    recall_score,
+)
+
+model_scores = {}
+
+for model_name, model in best_models.items():
+    print(f"\n===== Evaluating {model_name} =====")
+
+    # TRAIN
+    y_train_pred = model.predict(X_train_transformed)
+    print("\n--- TRAIN REPORT ---")
+    print(classification_report(y_train, y_train_pred))
+
+    # TEST
+    y_test_pred = model.predict(X_test_transformed)
+    print("\n--- TEST REPORT ---")
+    print(classification_report(y_test, y_test_pred))
+
+    # PROBABILITIES (safe)
+    if hasattr(model, "predict_proba"):
+        train_probs = model.predict_proba(X_train_transformed)[:, 1]
+        test_probs = model.predict_proba(X_test_transformed)[:, 1]
+    else:
+        train_probs = model.predict(X_train_transformed)
+        test_probs = model.predict(X_test_transformed)
+
+    # AUC
+    train_auc = roc_auc_score(y_train, train_probs)
+    test_auc = roc_auc_score(y_test, test_probs)
+
+    print(f"\nTrain AUC: {train_auc:.4f}")
+    print(f"Test AUC: {test_auc:.4f}")
+
+    # Recall (MOST IMPORTANT)
+    recall = recall_score(y_test, y_test_pred)
+    print(f"Recall (Fraud Detection): {recall:.4f}")
+
+    # Confusion Matrix
+    print("\n--- CONFUSION MATRIX (TEST) ---")
+    print(confusion_matrix(y_test, y_test_pred))
+
+    model_scores[model_name] = test_auc
+
+    # Overfitting check
+    if train_auc - test_auc > 0.1:
+        print("⚠️ Overfitting detected!")
+    else:
+        print("✅ Generalizing well")
+
+---CELL---
+
+best_model_name = max(model_scores, key=model_scores.get)
+final_best_model = best_models[best_model_name]
+
+print(f"\n🏆 BEST MODEL: {best_model_name}")
+
+---CELL---
+
+print("Models available for evaluation:", best_models.keys())
+
+---CELL---
+
+models = {
+    "LogisticRegression": LogisticRegression(class_weight="balanced", max_iter=1000),
+    "RandomForestClassifier": RandomForestClassifier(class_weight="balanced"),
+    "XGBClassifier": XGBClassifier(
+        scale_pos_weight=(len(y_train) - sum(y_train)) / sum(y_train),
+        eval_metric="logloss",
+    ),
+}
+
+from scipy.stats import randint, uniform
+
+params = {
+    "LogisticRegression": {"C": uniform(0.01, 10), "solver": ["liblinear"]},
+    "RandomForestClassifier": {
+        "n_estimators": randint(50, 200),
+        "max_depth": randint(3, 15),
+    },
+    "XGBClassifier": {
+        "n_estimators": randint(50, 200),
+        "learning_rate": uniform(0.01, 0.2),
+        "max_depth": randint(3, 10),
+    },
+}
+
+from sklearn.model_selection import RandomizedSearchCV
+
+best_models = {}
+
+for model_name, model in models.items():
+    print(f"\n===== Tuning {model_name} =====")
+
+    rs = RandomizedSearchCV(
+        model,
+        param_distributions=params[model_name],
+        n_iter=5,
+        cv=3,
+        scoring="recall",  # fraud focus
+        n_jobs=-1,
+        random_state=42,
+    )
+
+    rs.fit(X_train_transformed, y_train)
+
+    best_models[model_name] = rs.best_estimator_
+
+    print(f"Best Params: {rs.best_params_}")
+
+
+# ONLY THIS PART SHOULD BE OUTSIDE LOOP
+from sklearn.metrics import (
+    classification_report,
+    roc_auc_score,
+    confusion_matrix,
+    recall_score,
+)
+
+model_scores = {}
+
+for model_name, model in best_models.items():
+    print(f"\n===== Evaluating {model_name} =====")
+
+    # TRAIN
+    y_train_pred = model.predict(X_train_transformed)
+    print("\n--- TRAIN REPORT ---")
+    print(classification_report(y_train, y_train_pred))
+
+    # TEST
+    y_test_pred = model.predict(X_test_transformed)
+    print("\n--- TEST REPORT ---")
+    print(classification_report(y_test, y_test_pred))
+
+    # PROBABILITIES (safe)
+    if hasattr(model, "predict_proba"):
+        train_probs = model.predict_proba(X_train_transformed)[:, 1]
+        test_probs = model.predict_proba(X_test_transformed)[:, 1]
+    else:
+        train_probs = model.predict(X_train_transformed)
+        test_probs = model.predict(X_test_transformed)
+
+    # AUC
+    train_auc = roc_auc_score(y_train, train_probs)
+    test_auc = roc_auc_score(y_test, test_probs)
+
+    print(f"\nTrain AUC: {train_auc:.4f}")
+    print(f"Test AUC: {test_auc:.4f}")
+
+    # Recall (MOST IMPORTANT)
+    recall = recall_score(y_test, y_test_pred)
+    print(f"Recall (Fraud Detection): {recall:.4f}")
+
+    # Confusion Matrix
+    print("\n--- CONFUSION MATRIX (TEST) ---")
+    print(confusion_matrix(y_test, y_test_pred))
+
+    model_scores[model_name] = test_auc
+
+    # Overfitting check
+    if train_auc - test_auc > 0.1:
+        print("⚠️ Overfitting detected!")
+    else:
+        print("✅ Generalizing well")
+
+
+best_model_name = max(model_scores, key=model_scores.get)
+final_best_model = best_models[best_model_name]
+
+print(f"\n🏆 BEST MODEL: {best_model_name}")
+
+---CELL---
+
