@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Financial Fraud Detection System</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    <div class="particles" id="particles"></div>
+    
+    <div class="container">
+        <header>
+            <div class="shield-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+            </div>
+            <h1>AI Financial Fraud Detection System</h1>
+            <p class="subtitle">SOC // Real-time Transaction Monitoring</p>
+        </header>
+
+        <main class="dashboard">
+            <div class="panel input-panel">
+                <h2><span class="neon-blue">&gt;</span> Transaction Parameters</h2>
+                <form id="fraudForm">
+                    <div class="form-group">
+                        <label for="type">Transaction Type</label>
+                        <select id="type" name="type" required>
+                            <option value="PAYMENT">PAYMENT</option>
+                            <option value="TRANSFER">TRANSFER</option>
+                            <option value="CASH_OUT">CASH_OUT</option>
+                            <option value="CASH_IN">CASH_IN</option>
+                            <option value="DEBIT">DEBIT</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount">Amount ($)</label>
+                        <input type="number" step="0.01" id="amount" name="amount" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="oldbalanceOrg">Origin Old Balance</label>
+                        <input type="number" step="0.01" id="oldbalanceOrg" name="oldbalanceOrg" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newbalanceOrig">Origin New Balance</label>
+                        <input type="number" step="0.01" id="newbalanceOrig" name="newbalanceOrig" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="oldbalanceDest">Dest Old Balance</label>
+                        <input type="number" step="0.01" id="oldbalanceDest" name="oldbalanceDest" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newbalanceDest">Dest New Balance</label>
+                        <input type="number" step="0.01" id="newbalanceDest" name="newbalanceDest" required placeholder="0.00">
+                    </div>
+
+                    <button type="submit" class="cyber-btn" id="predictBtn">
+                        <span class="btn-text">Predict Fraud</span>
+                        <span class="btn-glitch"></span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="panel output-panel">
+                <h2><span class="neon-red">&gt;</span> Analysis Result</h2>
+                
+                <div class="status-display" id="statusDisplay">
+                    <div class="idle-state">
+                        <div class="radar"></div>
+                        <p>Awaiting transaction data...</p>
+                    </div>
+                </div>
+
+                <div class="result-display hidden" id="resultDisplay">
+                    <div class="result-box">
+                        <h3>Risk Label</h3>
+                        <div class="risk-badge" id="riskLabel">LOW</div>
+                    </div>
+                    <div class="result-box">
+                        <h3>Fraud Probability</h3>
+                        <div class="probability-value"><span id="fraudProb">0.00</span>%</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="probFill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="loading-state hidden" id="loadingState">
+                    <div class="spinner"></div>
+                    <p>Analyzing transaction patterns...</p>
+                </div>
+                
+                <div class="error-state hidden" id="errorState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <p id="errorText">System Error. Connection failed.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

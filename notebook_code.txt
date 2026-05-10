@@ -481,3 +481,17 @@ print(f"\n🏆 BEST MODEL: {best_model_name}")
 
 ---CELL---
 
+python -m src.components.data_ingestion
+python -m src.components.data_transformation
+python -m src.components.model_trainer
+
+
+# DROP HIGH CARDINALITY COLUMNS
+            drop_columns = ["nameOrig", "nameDest"]
+
+            train_df = train_df.drop(columns=drop_columns)
+
+            test_df = test_df.drop(columns=drop_columns)
+
+            logger.info(f"Dropped columns: {drop_columns}")
+

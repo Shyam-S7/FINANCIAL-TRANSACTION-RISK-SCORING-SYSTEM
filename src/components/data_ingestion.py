@@ -36,9 +36,6 @@ class DataIngestion:
             logger.info(
                 f"Target Distribution:\n{df['isFraud'].value_counts().to_string()}"
             )
-            df.drop(columns=["nameOrig", "nameDest"], inplace=True)
-
-            logger.info("Drop nameOrig and nameDest columns")
 
             # CREATE ARTIFACTS FOLDER
             os.makedirs(os.path.dirname(self.config.train_data_path), exist_ok=True)

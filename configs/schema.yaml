@@ -1,11 +1,15 @@
 columns:
+  step: int
+  type: object
   amount: float
+  nameOrig: object
   oldbalanceOrg: float
   newbalanceOrig: float
+  nameDest: object
   oldbalanceDest: float
   newbalanceDest: float
-  type: object
   isFraud: int
+  isFlaggedFraud: int
 
 target_column:
   name: isFraud

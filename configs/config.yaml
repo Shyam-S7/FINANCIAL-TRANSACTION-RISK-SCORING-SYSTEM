@@ -20,6 +20,8 @@ data_transformation:
 
 model_trainer:
   root_dir: artifacts/model_trainer
+  train_arr_path: artifacts/data_transformation/train.npy
+  test_arr_path: artifacts/data_transformation/test.npy
   model_path: artifacts/model_trainer/best_model.joblib
 
 model_evaluation:

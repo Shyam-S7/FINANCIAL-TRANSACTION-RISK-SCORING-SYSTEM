@@ -1,19 +1,21 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install uv securely for blazing fast installations
+# Install uv
 RUN pip install --no-cache-dir uv
 
-# Move requirements over and cache dependencies tightly using uv
+# Copy requirements first for Docker caching
 COPY requirements.txt .
+
+# Install dependencies
 RUN uv pip install --system --no-cache -r requirements.txt
 
-# Copy Project
+# Copy full project
 COPY . .
 
-# Expose API port
+# Expose FastAPI port
 EXPOSE 8000
 
-# Exec into the backend logic
+# Start FastAPI server
 CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]

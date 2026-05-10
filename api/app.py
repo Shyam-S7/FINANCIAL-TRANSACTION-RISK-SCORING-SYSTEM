@@ -1,6 +1,7 @@
 import sys
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 
@@ -12,6 +13,14 @@ from src.utils.logger import logger
 
 app = FastAPI(title="Financial Transaction Risk Scoring API", description="Production API to predict online fraud.")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class TransactionInput(BaseModel):
     amount: float
     oldbalanceOrg: float
@@ -19,6 +28,12 @@ class TransactionInput(BaseModel):
     oldbalanceDest: float
     newbalanceDest: float
     type: str
+
+
+@app.get("/")
+def home():
+    return {"message": "Financial Fraud Detection API Running"}
+
 
 @app.post("/predict")
 def predict_fraud(transaction: TransactionInput):
@@ -40,8 +55,13 @@ def predict_fraud(transaction: TransactionInput):
         preds, probs = predict_pipeline.predict(df)
         
         fraud_prob = float(probs[0])
-        label = "High" if preds[0] == 1 else "Low"
-
+        
+        if fraud_prob >= 0.8:
+            label = "High"
+        elif fraud_prob >= 0.4:
+            label = "Medium"
+        else:
+            label = "Low"
         return {
             "fraud_probability": round(fraud_prob, 4),
             "risk_label": label

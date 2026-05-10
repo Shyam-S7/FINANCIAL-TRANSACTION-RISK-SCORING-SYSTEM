@@ -1,61 +1,65 @@
 import sys
 import pandas as pd
+import os
+
 from src.utils.logger import logger
 from src.exception.custom_exception import CustomException
 from src.entity.config_entity import DataValidationConfig
-import os
 
 
 class DataValidation:
     def __init__(self, config: DataValidationConfig):
         self.config = config
-        
+
     def validate_all_columns(self, train_data_path: str) -> bool:
+
         try:
-        logger.info("Starting Data Validation")
+            logger.info("Starting Data Validation")
 
-        validation_status = True
+            validation_status = True
 
-        data = pd.read_csv(train_data_path)
-        data_columns = set(data.columns)
+            data = pd.read_csv(train_data_path)
 
-        schema = self.config.all_schema
+            all_cols = set(data.columns)
 
-        # handle string schema
-        if isinstance(schema, str):
-            import ast
-            schema = ast.literal_eval(schema)
+            # all_schema already contains columns dictionary
+            schema_cols = set(self.config.all_schema.keys())
 
-        if not isinstance(schema, dict):
-            raise Exception("Invalid schema format")
+            logger.info(f"Dataset Columns: {all_cols}")
 
-        if "columns" not in schema:
-            raise Exception(f"Schema missing 'columns'. Got keys: {schema.keys()}")
+            logger.info(f"Schema Columns: {schema_cols}")
 
-        schema_columns = set(schema["columns"].keys())
+            missing_cols = schema_cols - all_cols
 
-        missing = schema_columns - data_columns
-        extra = data_columns - schema_columns
+            extra_cols = all_cols - schema_cols
 
-        if missing:
-            logger.error(f"Missing columns: {missing}")
-            validation_status = False
+            if len(missing_cols) > 0:
+                validation_status = False
+                logger.warning(f"Missing Columns: {missing_cols}")
 
-        if extra:
-            logger.warning(f"Extra columns ignored: {extra}")
+            if len(extra_cols) > 0:
+                validation_status = False
+                logger.warning(f"Extra Columns: {extra_cols}")
 
-        return validation_status
+            os.makedirs(os.path.dirname(self.config.status_file), exist_ok=True)
 
-    except Exception as e:
-        logger.exception("Validation failed")
-        raise CustomException(e, sys)
-    
+            with open(self.config.status_file, "w") as f:
+                f.write(f"Validation status: {validation_status}")
+
+            logger.info(f"Validation status: {validation_status}")
+
+            return validation_status
+
+        except Exception as e:
+            raise CustomException(e, sys)
 
 
 if __name__ == "__main__":
+
     from src.config.configuration import ConfigurationManager
 
     try:
+
         config = ConfigurationManager()
 
         data_validation_config = config.get_data_validation_config()
@@ -64,9 +68,9 @@ if __name__ == "__main__":
 
         train_data_path = config.get_data_ingestion_config().train_data_path
 
-        result = data_validation.validate_all_columns(str(train_data_path))
+        status = data_validation.validate_all_columns(str(train_data_path))
 
-        logger.info(f"Validation Result: {result}")
+        print(status)
 
     except Exception as e:
         logger.exception(e)

@@ -67,6 +67,12 @@ class DataTransformation:
 
             test_df = pd.read_csv(self.config.test_data_path)
 
+            drop_columns = ["nameOrig", "nameDest", "isFlaggedFraud", "step"]
+
+            train_df = train_df.drop(columns=drop_columns)
+
+            test_df = test_df.drop(columns=drop_columns)
+
             # REDUCE DATA SIZE FOR FAST TRAINING
             train_df = train_df.sample(300000, random_state=42)
 
@@ -75,15 +81,6 @@ class DataTransformation:
             train_df = self.fe.create_derived_features(train_df)
 
             test_df = self.fe.create_derived_features(test_df)
-
-            # DROP HIGH CARDINALITY COLUMNS
-            drop_columns = ["nameOrig", "nameDest"]
-
-            train_df = train_df.drop(columns=drop_columns)
-
-            test_df = test_df.drop(columns=drop_columns)
-
-            logger.info(f"Dropped columns: {drop_columns}")
 
             target_column_name = "isFraud"
 
